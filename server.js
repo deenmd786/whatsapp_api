@@ -10,6 +10,11 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const API_URL = `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_ID}/messages`;
 
+// Root health check to prevent 404s
+app.get('/', (req, res) => {
+    res.send('WhatsApp Webhook Server is Live!');
+});
+
 // ==========================================
 // 1. Webhook Verification (Required by Meta)
 // ==========================================
@@ -18,19 +23,17 @@ app.get('/webhook', (req, res) => {
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
 
-    // Check if the verify token matches what you have in your .env
     if (mode === 'subscribe' && token === process.env.WHATSAPP_VERIFY_TOKEN) {
-        console.log('Webhook verified!');
+        console.log('Webhook verified successfully!');
         return res.status(200).send(challenge);
     }
-    res.sendStatus(403);
+    return res.sendStatus(403);
 });
 
 // ==========================================
-// 2. Receive Messages & Trigger Automation
+// 2. Receive Messages & Auto-Reply
 // ==========================================
 app.post('/webhook', async (req, res) => {
-    // Meta expects a 200 OK immediately, or they will retry sending the payload
     res.sendStatus(200);
 
     try {
@@ -38,35 +41,57 @@ app.post('/webhook', async (req, res) => {
         const change = entry?.changes?.[0];
         const message = change?.value?.messages?.[0];
 
-        // Ensure we actually received a text message
         if (message?.type === 'text') {
             const senderNumber = message.from;
             const incomingText = message.text.body.toLowerCase();
 
             console.log(`Received message from ${senderNumber}: ${incomingText}`);
 
-            // Trigger automation if they say hi, hello, or come from an ad
             if (incomingText.includes('hi') || incomingText.includes('hello')) {
                 await sendServiceMenu(senderNumber);
             }
         }
-
-        // Handle when a user clicks a button from your Interactive List
-        if (message?.type === 'interactive') {
-            const selectedOptionId = message.interactive.list_reply.id;
-            console.log(`User selected: ${selectedOptionId}`);
-
-            // You can add further automation here based on the selected ID
-            // e.g., if (selectedOptionId === 'web_dynamic') { send dynamic pricing }
-        }
-
     } catch (error) {
         console.error("Webhook Error:", error);
     }
 });
 
 // ==========================================
-// 3. The Interactive List Payload
+// 3. API Route for the HTML Test Form
+// ==========================================
+app.post('/api/send-message', async (req, res) => {
+    const { recipientNumber, customerName, orderNumber, orderDate } = req.body;
+
+    const payload = {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: recipientNumber,
+        type: "text",
+        text: {
+            preview_url: false,
+            body: `Hello ${customerName}! Your order #${orderNumber} placed on ${orderDate} is confirmed.`
+        }
+    };
+
+    try {
+        const response = await axios.post(API_URL, payload, {
+            headers: {
+                'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        return res.status(200).json({ success: true, data: response.data });
+    } catch (error) {
+        console.error("Failed to send message:", error.response?.data || error.message);
+        return res.status(500).json({
+            success: false,
+            error: error.response?.data || error.message
+        });
+    }
+});
+
+// ==========================================
+// 4. Interactive List Menu
 // ==========================================
 async function sendServiceMenu(toPhone) {
     const payload = {
@@ -92,22 +117,20 @@ async function sendServiceMenu(toPhone) {
                     {
                         title: "Website Development",
                         rows: [
-                            { id: "web_static", title: "Static Website", description: "Fast, single-page sites" },
-                            { id: "web_animated", title: "Animated Website", description: "Interactive & engaging" },
-                            { id: "web_dynamic", title: "Dynamic Website", description: "Data-driven web apps" },
-                            { id: "web_budget", title: "Ask for Budget", description: "Get a custom quote" }
+                            { id: "web_static", title: "Static Website", description: "Starting at 20k INR" },
+                            { id: "web_dynamic", title: "E-Commerce / Dynamic", description: "Starting at 30k INR" }
                         ]
                     },
                     {
                         title: "Custom Applications",
                         rows: [
-                            { id: "service_apps", title: "App Development", description: "iOS & Android solutions" }
+                            { id: "service_apps", title: "Mobile App Development", description: "Starting at 50k INR" }
                         ]
                     },
                     {
-                        title: "Business Automation",
+                        title: "Automation",
                         rows: [
-                            { id: "service_auto", title: "WhatsApp Automation", description: "Chatbots & workflows" }
+                            { id: "service_auto", title: "WhatsApp & AI Bots", description: "Starting at 20k INR" }
                         ]
                     }
                 ]
@@ -128,7 +151,6 @@ async function sendServiceMenu(toPhone) {
     }
 }
 
-// Start the server
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
