@@ -34,7 +34,6 @@ async function sendMainMenu(toPhone, name) {
                         { id: "srv_auto", title: "3. Business Automation" },
                         { id: "srv_meta", title: "4. Meta Ads" },
                         { id: "srv_google", title: "5. Google Ads" },
-                        { id: "srv_social", title: "6. Social Media Ads" }
                     ]
                 }]
             }
@@ -53,7 +52,7 @@ async function sendServiceDetails(toPhone, serviceId) {
         detailsText = "*Apps + Website Bundle*\nCustom applications with a complete website, modern UI/UX, and seamless performance.\n\n*Total Price:* ~₹80,000~ ₹50,000 (Discounted)\n*Advance Required (25%):* ₹12,500";
     } else if (serviceId === 'srv_auto') {
         detailsText = "*Automation + Web + SEO + SMO*\nA complete digital dominance package including CRM workflows, website, and search/social optimization.\n\n*Total Price:* ~₹30,000~ ₹20,000 (Discounted)\n*Advance Required (25%):* ₹5,000";
-    } else if (serviceId === 'srv_meta' || serviceId === 'srv_social') {
+    } else if (serviceId === 'srv_meta') {
         detailsText = "*Meta Ads (Facebook & Instagram)*\nHighly targeted ad campaigns to generate quality leads.\n\n*Monthly Price:* ~₹15,000~ ₹8,000 (Discounted)";
     } else if (serviceId === 'srv_google') {
         detailsText = "*Google & YouTube Ads*\nCapture high-intent customers searching for your services right now.\n\n*Monthly Price:* ~₹20,000~ ₹10,000 (Discounted)";
