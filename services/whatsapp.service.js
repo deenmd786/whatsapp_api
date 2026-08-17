@@ -1,5 +1,5 @@
 const axios = require('axios');
-const phonepeService = require('./phonepe.service'); // <-- Import PhonePe Service
+// const phonepeService = require('./phonepe.service'); 
 
 // Helper Function to trigger the Meta API
 async function sendToWhatsApp(payload) {
@@ -48,15 +48,15 @@ async function sendServiceDetails(toPhone, serviceId) {
     let detailsText = "";
 
     if (serviceId === 'srv_web') {
-        detailsText = "*Website Development*\nWe build high-converting, mobile-responsive websites tailored to your brand.\n\n*Pricing:* Starts at ₹20,000 for static sites, up to ₹50,000 for complex E-commerce.";
+        detailsText = "*Website Development*\nWe build high-converting, mobile-responsive websites tailored to your brand.\n\n*Total Price:* ₹20,000\n*Advance Required (25%):* ₹5,000";
     } else if (serviceId === 'srv_app') {
-        detailsText = "*App Development*\nCustom iOS and Android applications with modern UI/UX and seamless performance.\n\n*Pricing:* Starts at ₹50,000 depending on features.";
+        detailsText = "*Apps + Website Bundle*\nCustom applications with a complete website, modern UI/UX, and seamless performance.\n\n*Total Price:* ~₹80,000~ ₹50,000 (Discounted)\n*Advance Required (25%):* ₹12,500";
     } else if (serviceId === 'srv_auto') {
-        detailsText = "*Business Automation*\nSave time with WhatsApp chatbots, CRM integrations, and lead-nurturing workflows.\n\n*Pricing:* Starts at ₹20,000 setup fee.";
+        detailsText = "*Automation + Web + SEO + SMO*\nA complete digital dominance package including CRM workflows, website, and search/social optimization.\n\n*Total Price:* ~₹30,000~ ₹20,000 (Discounted)\n*Advance Required (25%):* ₹5,000";
     } else if (serviceId === 'srv_meta' || serviceId === 'srv_social') {
-        detailsText = "*Meta & Social Media Ads*\nHighly targeted ad campaigns on Facebook, Instagram, and LinkedIn to generate quality leads.\n\n*Pricing:* ₹15,000/month retainer + Ad Spend.";
+        detailsText = "*Meta Ads (Facebook & Instagram)*\nHighly targeted ad campaigns to generate quality leads.\n\n*Monthly Price:* ~₹15,000~ ₹8,000 (Discounted)";
     } else if (serviceId === 'srv_google') {
-        detailsText = "*Google Ads*\nCapture high-intent customers searching for your services right now on Google.\n\n*Pricing:* ₹15,000/month retainer + Ad Spend.";
+        detailsText = "*Google & YouTube Ads*\nCapture high-intent customers searching for your services right now.\n\n*Monthly Price:* ~₹20,000~ ₹10,000 (Discounted)";
     }
 
     const payload = {
@@ -65,10 +65,10 @@ async function sendServiceDetails(toPhone, serviceId) {
         type: "interactive",
         interactive: {
             type: "button",
-            body: { text: detailsText + "\n\nWould you like to book this service by paying an advance?" },
+            body: { text: detailsText + "\n\nWould you like to book this service and secure the discounted pricing?" },
             action: {
                 buttons: [
-                    { type: "reply", reply: { id: `pay_${serviceId}`, title: "Pay Advance Now" } }
+                    { type: "reply", reply: { id: `pay_${serviceId}`, title: "Pay Now" } }
                 ]
             }
         }
@@ -76,40 +76,26 @@ async function sendServiceDetails(toPhone, serviceId) {
     await sendToWhatsApp(payload);
 }
 
+// Collect Payment & Send Specific Razorpay Link
+async function sendPaymentAndReceipt(toPhone, serviceId) {
+    // CORRECTED RAZORPAY LINKS:
+    const paymentLinks = {
+        'srv_web': 'https://rzp.io/l/H6dBjYGP',       // ₹5,000 link for website
+        'srv_app': 'https://rzp.io/l/amO3XoLb',       // ₹12,500 link for apps and website 
+        'srv_auto': 'https://rzp.io/l/D2ckFS9g',      // ₹5,000 link for automation 
+        'srv_meta': 'https://rzp.io/l/gmh0viTf',      // ₹8,000 link for meta ads 
+        'srv_google': 'https://rzp.io/l/jwTVi03v'     // ₹10,000 link for google and youtube campaigns
+    };
 
+    const linkToSend = paymentLinks[serviceId];
 
-// async function sendPaymentAndReceipt(toPhone) {
-//     const paymentText = "Awesome! 🚀 \n\nTo lock in your project, please pay the advance using our secure Razorpay link below:\n\n🔗 *Payment Link:* https://razorpay.me/@digroz \n\n_Once paid, please reply with a screenshot. A formal invoice and project proposal will be emailed to you shortly._";
-
-//     const payload = {
-//         messaging_product: "whatsapp",
-//         to: toPhone,
-//         type: "text",
-//         text: {
-//             body: paymentText,
-//             preview_url: true // This creates a nice clickable preview box for your link in WhatsApp!
-//         }
-//     };
-//     await sendToWhatsApp(payload);
-// }
-
-
-// Collect Payment & Send Receipt dynamically
-async function sendPaymentAndReceipt(toPhone) {
-    const advanceAmount = 5000; // Fixed advance amount of ₹5,000
-
-    // Call our PhonePe service to generate a secure, one-time link
-    const paymentUrl = await phonepeService.generatePaymentLink(advanceAmount, toPhone);
-
-    let paymentText = "";
-
-    if (paymentUrl) {
-        // Success: Send the generated link
-        paymentText = `Awesome! 🚀\n\nTo lock in your project, please pay the advance of *₹${advanceAmount}* using our secure PhonePe link below:\n\n🔗 ${paymentUrl}\n\n_Once paid, please reply with a screenshot. A formal invoice and project proposal will be emailed to you shortly._`;
-    } else {
-        // Fallback: If PhonePe API fails for some reason, show UPI ID
-        paymentText = `Awesome! 🚀\n\nOur automated link generator is busy. Please pay the advance of *₹${advanceAmount}* directly to our UPI ID:\n\n*UPI ID:* digroz@icici\n\n_Once paid, please reply with a screenshot._`;
+    // Just in case a service ID isn't found, we provide a fallback
+    if (!linkToSend) {
+        console.error(`No link found for service ID: ${serviceId}`);
+        return;
     }
+
+    const paymentText = `Awesome! 🚀\n\nTo lock in your project and secure this pricing, please complete your payment using our secure Razorpay link below:\n\n🔗 *Payment Link:* ${linkToSend}\n\n_Once paid, please reply with a screenshot. A formal invoice and project proposal will be emailed to you shortly._`;
 
     const payload = {
         messaging_product: "whatsapp",
@@ -117,12 +103,41 @@ async function sendPaymentAndReceipt(toPhone) {
         type: "text",
         text: {
             body: paymentText,
-            preview_url: true // Creates a clickable preview box
+            preview_url: true
         }
     };
-
     await sendToWhatsApp(payload);
 }
+
+
+// async function sendPaymentAndReceipt(toPhone) {
+//     const advanceAmount = 5000; // Fixed advance amount of ₹5,000
+
+//     // Call our PhonePe service to generate a secure, one-time link
+//     const paymentUrl = await phonepeService.generatePaymentLink(advanceAmount, toPhone);
+
+//     let paymentText = "";
+
+//     if (paymentUrl) {
+//         // Success: Send the generated link
+//         paymentText = `Awesome! 🚀\n\nTo lock in your project, please pay the advance of *₹${advanceAmount}* using our secure PhonePe link below:\n\n🔗 ${paymentUrl}\n\n_Once paid, please reply with a screenshot. A formal invoice and project proposal will be emailed to you shortly._`;
+//     } else {
+//         // Fallback: If PhonePe API fails for some reason, show UPI ID
+//         paymentText = `Awesome! 🚀\n\nOur automated link generator is busy. Please pay the advance of *₹${advanceAmount}* directly to our UPI ID:\n\n*UPI ID:* digroz@icici\n\n_Once paid, please reply with a screenshot._`;
+//     }
+
+//     const payload = {
+//         messaging_product: "whatsapp",
+//         to: toPhone,
+//         type: "text",
+//         text: {
+//             body: paymentText,
+//             preview_url: true // Creates a clickable preview box
+//         }
+//     };
+
+//     await sendToWhatsApp(payload);
+// }
 
 
 module.exports = {
