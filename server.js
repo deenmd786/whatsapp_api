@@ -11,6 +11,12 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
+// This is the endpoint UptimeRobot will hit
+app.get('/ping', (req, res) => {
+    console.log('Ping received! Keeping server awake.');
+    res.status(200).send('Awake');
+});
+
 // Root health check
 app.get('/', (req, res) => res.send('Digroz Webhook Server Live!'));
 
