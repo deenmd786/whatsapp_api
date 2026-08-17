@@ -1,4 +1,5 @@
 const axios = require('axios');
+const phonepeService = require('./phonepe.service'); // <-- Import PhonePe Service
 
 // Helper Function to trigger the Meta API
 async function sendToWhatsApp(payload) {
@@ -75,9 +76,40 @@ async function sendServiceDetails(toPhone, serviceId) {
     await sendToWhatsApp(payload);
 }
 
-// Collect Payment & Send Receipt
+
+
+// async function sendPaymentAndReceipt(toPhone) {
+//     const paymentText = "Awesome! 🚀 \n\nTo lock in your project, please pay the advance using our secure Razorpay link below:\n\n🔗 *Payment Link:* https://razorpay.me/@digroz \n\n_Once paid, please reply with a screenshot. A formal invoice and project proposal will be emailed to you shortly._";
+
+//     const payload = {
+//         messaging_product: "whatsapp",
+//         to: toPhone,
+//         type: "text",
+//         text: {
+//             body: paymentText,
+//             preview_url: true // This creates a nice clickable preview box for your link in WhatsApp!
+//         }
+//     };
+//     await sendToWhatsApp(payload);
+// }
+
+
+// Collect Payment & Send Receipt dynamically
 async function sendPaymentAndReceipt(toPhone) {
-    const paymentText = "Awesome! 🚀 \n\nTo lock in your project, please pay the advance using our secure Razorpay link below:\n\n🔗 *Payment Link:* https://razorpay.me/@digroz \n\n_Once paid, please reply with a screenshot. A formal invoice and project proposal will be emailed to you shortly._";
+    const advanceAmount = 5000; // Fixed advance amount of ₹5,000
+
+    // Call our PhonePe service to generate a secure, one-time link
+    const paymentUrl = await phonepeService.generatePaymentLink(advanceAmount, toPhone);
+
+    let paymentText = "";
+
+    if (paymentUrl) {
+        // Success: Send the generated link
+        paymentText = `Awesome! 🚀\n\nTo lock in your project, please pay the advance of *₹${advanceAmount}* using our secure PhonePe link below:\n\n🔗 ${paymentUrl}\n\n_Once paid, please reply with a screenshot. A formal invoice and project proposal will be emailed to you shortly._`;
+    } else {
+        // Fallback: If PhonePe API fails for some reason, show UPI ID
+        paymentText = `Awesome! 🚀\n\nOur automated link generator is busy. Please pay the advance of *₹${advanceAmount}* directly to our UPI ID:\n\n*UPI ID:* digroz@icici\n\n_Once paid, please reply with a screenshot._`;
+    }
 
     const payload = {
         messaging_product: "whatsapp",
@@ -85,11 +117,13 @@ async function sendPaymentAndReceipt(toPhone) {
         type: "text",
         text: {
             body: paymentText,
-            preview_url: true // This creates a nice clickable preview box for your link in WhatsApp!
+            preview_url: true // Creates a clickable preview box
         }
     };
+
     await sendToWhatsApp(payload);
 }
+
 
 module.exports = {
     sendMainMenu,
