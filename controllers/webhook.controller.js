@@ -1,19 +1,41 @@
 const whatsappService = require('../services/whatsapp.service');
-const content = require('../services/messages'); // Make sure this path is correct
+const content = require('../services/messages'); // Adjust path to messages.js if needed
 const nodemailer = require('nodemailer');
 
 // -------------------------------------------------------------
-// SETUP EMAIL TRANSPORTER
+// SETUP EMAIL TRANSPORTER (With Timeout Protection)
 // -------------------------------------------------------------
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // Use SSL
+    service: 'gmail',
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
-    }
+    },
+    pool: true,
+    connectionTimeout: 10000, // 10 seconds timeout
+    greetingTimeout: 5000,
+    socketTimeout: 10000
 });
+
+// Helper function to send lead emails safely
+function sendLeadEmail(customerName, senderNumber, chosenService, actionType) {
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: 'deen8851@gmail.com',
+        subject: `🎯 New Lead Alert: ${customerName} interested in ${chosenService}`,
+        text: `New Lead Alert!\n\nName: ${customerName}\nWhatsApp Number: ${senderNumber}\nInterested Service: ${chosenService}\nAction: ${actionType}\n\nYou can reach out to them directly on WhatsApp!`
+    };
+
+    console.log(`[EMAIL] Attempting to send email for: ${chosenService}...`);
+
+    transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+            console.error('❌ [EMAIL ERROR]:', error.message);
+        } else {
+            console.log(`✅ [EMAIL SUCCESS] Sent to deen8851@gmail.com (ID: ${info.messageId})`);
+        }
+    });
+}
 
 // 1. Webhook Verification (GET)
 const verifyWebhook = (req, res) => {
@@ -41,76 +63,56 @@ const handleWebhook = async (req, res) => {
         if (message) {
             const senderNumber = message.from;
 
+            // User sends initial text (e.g., "Hi")
             if (message.type === 'text') {
                 await whatsappService.sendLanguageSelection(senderNumber, customerName);
             }
 
+            // User interacts with buttons/lists
             if (message.type === 'interactive') {
                 const interactive = message.interactive;
 
-                // Handle List Options
+                // 🎯 1. TRIGGERED WHEN USER CHOOSES A SERVICE FROM THE LIST MENU
                 if (interactive.type === 'list_reply') {
-                    const fullId = interactive.list_reply.id;
+                    const fullId = interactive.list_reply.id; // e.g. "srv_web_en"
                     const parts = fullId.split('_');
-                    const serviceKey = `${parts[0]}_${parts[1]}`;
+                    const serviceKey = `${parts[0]}_${parts[1]}`; // "srv_web"
                     const lang = parts[2] || 'en';
 
+                    // A. Send Service Details to the user on WhatsApp
                     await whatsappService.sendServiceDetails(senderNumber, serviceKey, lang);
+
+                    // B. Send Email Alert to you immediately
+                    const chosenService = content.teamNames[serviceKey] || 'Consulting';
+                    sendLeadEmail(customerName, senderNumber, chosenService, 'Selected from Service Menu');
                 }
 
-                // Handle Button Clicks
+                // 🎯 2. TRIGGERED WHEN USER CLICKS BUTTONS
                 if (interactive.type === 'button_reply') {
                     const buttonId = interactive.button_reply.id;
 
-                    console.log(`\n👉 [ACTION] User clicked button ID: ${buttonId}`);
-
+                    // Language Selection
                     if (buttonId.startsWith('lang_')) {
                         const selectedLang = buttonId.replace('lang_', '');
                         await whatsappService.sendMainMenu(senderNumber, selectedLang);
                     }
+                    // Back to Main Menu
                     else if (buttonId.startsWith('menu_')) {
                         const lang = buttonId.replace('menu_', '');
                         await whatsappService.sendMainMenu(senderNumber, lang);
                     }
-
-                    // 🎯 "GET BEST PRICE" BUTTON CLICKED
+                    // "Get Best Price" Button Clicked
                     else if (buttonId.startsWith('price_')) {
-                        console.log(`✅ [DEBUG] "Get Best Price" button logic triggered!`);
-
                         const parts = buttonId.split('_');
                         const serviceKey = `${parts[1]}_${parts[2]}`;
                         const lang = parts[3] || 'en';
 
-                        console.log(`[DEBUG] Extracted Service: ${serviceKey}`);
+                        // Send Final Thank You message on WhatsApp
+                        await whatsappService.sendFinalMessage(senderNumber, serviceKey, lang);
 
-                        // 1. Send WhatsApp Message
-                        try {
-                            await whatsappService.sendFinalMessage(senderNumber, serviceKey, lang);
-                            console.log(`[DEBUG] Final WhatsApp message sent successfully.`);
-                        } catch (waError) {
-                            console.error(`❌ [ERROR] WhatsApp message failed:`, waError.message);
-                        }
-
-                        // 2. Send Email
+                        // Send Email Alert
                         const chosenService = content.teamNames[serviceKey] || 'Consulting';
-                        const mailOptions = {
-                            from: process.env.EMAIL_USER,
-                            to: 'deen8851@gmail.com',
-                            subject: `New Lead: ${customerName} wants ${chosenService}`,
-                            text: `New Lead Alert!\n\nName: ${customerName}\nWhatsApp Number: ${senderNumber}\nChosen Service: ${chosenService}`
-                        };
-
-                        console.log(`[DEBUG] Preparing to send email from: ${mailOptions.from} to ${mailOptions.to}...`);
-                        transporter.sendMail(mailOptions, (error, info) => {
-                            if (error) {
-                                console.error('\n❌ [EMAIL ERROR] Failed to send email.');
-                                console.error('Error Message:', error.message);
-                            } else {
-                                console.log(`✅ [SUCCESS] Lead Email sent successfully! Message ID: ${info.messageId}`);
-                            }
-                        });
-                    } else {
-                        console.log(`⚠️ [DEBUG] Button ID ${buttonId} did not match any known actions.`);
+                        sendLeadEmail(customerName, senderNumber, chosenService, 'Clicked Get Best Price');
                     }
                 }
             }
