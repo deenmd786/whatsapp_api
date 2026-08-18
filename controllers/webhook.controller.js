@@ -6,7 +6,9 @@ const nodemailer = require('nodemailer');
 // SETUP EMAIL TRANSPORTER
 // -------------------------------------------------------------
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // Use SSL
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
@@ -99,15 +101,14 @@ const handleWebhook = async (req, res) => {
                         };
 
                         console.log(`[DEBUG] Preparing to send email from: ${mailOptions.from} to ${mailOptions.to}...`);
-
-                        try {
-                            let info = await transporter.sendMail(mailOptions);
-                            console.log(`✅ [SUCCESS] Lead Email sent successfully! Message ID: ${info.messageId}`);
-                        } catch (error) {
-                            console.error('\n❌ [EMAIL ERROR] Failed to send email.');
-                            console.error('Error Message:', error.message);
-                            console.error('Full Error Details:', error);
-                        }
+                        transporter.sendMail(mailOptions, (error, info) => {
+                            if (error) {
+                                console.error('\n❌ [EMAIL ERROR] Failed to send email.');
+                                console.error('Error Message:', error.message);
+                            } else {
+                                console.log(`✅ [SUCCESS] Lead Email sent successfully! Message ID: ${info.messageId}`);
+                            }
+                        });
                     } else {
                         console.log(`⚠️ [DEBUG] Button ID ${buttonId} did not match any known actions.`);
                     }
