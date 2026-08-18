@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const nodemailer = require('nodemailer'); // Import nodemailer
 const cors = require('cors');
 
 // Import routes
