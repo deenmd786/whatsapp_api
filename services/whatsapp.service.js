@@ -78,13 +78,15 @@ async function sendServiceDetails(toPhone, serviceKey, lang = 'en') {
     await sendToWhatsApp(payload);
 }
 
-// 4. Send The Questions (Triggered when they click 'Get Best Price')
-async function sendPriceForm(toPhone, lang = 'en') {
+// 4. Send Final Thank You Message
+async function sendFinalMessage(toPhone, serviceKey, lang = 'en') {
+    const messageText = content.finalMessage[lang](serviceKey);
+
     const payload = {
         messaging_product: "whatsapp",
         to: toPhone,
         type: "text",
-        text: { body: content.forms[lang] }
+        text: { body: messageText }
     };
     await sendToWhatsApp(payload);
 }
@@ -93,5 +95,5 @@ module.exports = {
     sendLanguageSelection,
     sendMainMenu,
     sendServiceDetails,
-    sendPriceForm
+    sendFinalMessage
 };

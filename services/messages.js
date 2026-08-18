@@ -11,10 +11,21 @@ const getGreeting = () => {
     return { en: 'Good Evening', hi: 'शुभ संध्या' };
 };
 
+// Map service IDs to readable team names
+const teamNames = {
+    'srv_web': 'Website Development',
+    'srv_app': 'App & Web Software',
+    'srv_auto': 'Business Automation',
+    'srv_meta': 'Meta Ads',
+    'srv_google': 'Google & YouTube Ads'
+};
+
 const content = {
     // -------------------------------------------------------------
     // STEP 1: Quick Bilingual Welcome
     // -------------------------------------------------------------
+    teamNames,
+
     welcome: (name) => {
         const time = getGreeting();
         return `*Welcome to Digroz Agency* 🚀\n\n${time.en}, ${name}! 👋\n${time.hi}, ${name}! 👋\n\nChoose language / भाषा चुनें:`;
@@ -83,11 +94,17 @@ const content = {
     },
 
     // -------------------------------------------------------------
-    // STEP 4: The Best Price Form
+    // STEP 4: Final Thank You Message (Replaces the Form)
     // -------------------------------------------------------------
-    forms: {
-        en: "Great! Let's get you the best price. 🏷️\n\nPlease reply with:\n1️⃣ *Business Type:* (e.g., Real Estate, Clinic, Shop)\n2️⃣ *Estimated Budget:*\n\n_Just type your answers in a single message and hit send! Our team will share a custom quotation immediately._",
-        hi: "शानदार! चलिए आपको बेस्ट प्राइस बताते हैं। 🏷️\n\nकृपया रिप्लाई में बताएं:\n1️⃣ *बिज़नेस का प्रकार:* (जैसे- रियल एस्टेट, दुकान, क्लिनिक)\n2️⃣ *अनुमानित बजट:*\n\n_बस अपने जवाब टाइप करें और सेंड करें! हमारी टीम तुरंत आपको एक बेस्ट कोटेशन भेजेगी।_"
+    finalMessage: {
+        en: (serviceKey) => {
+            const team = teamNames[serviceKey] || 'Consulting';
+            return `Thank you for contacting Digroz! 🙏✨\n\nOur specialized *${team} Team* has received your request. We will reach out to you shortly to understand your needs and offer you the best price. 🚀\n\nHave a great day!`;
+        },
+        hi: (serviceKey) => {
+            const team = teamNames[serviceKey] || 'Consulting';
+            return `Digroz से संपर्क करने के लिए धन्यवाद! 🙏✨\n\nहमारी विशेष *${team} टीम* को आपकी रिक्वेस्ट मिल गई है। हम जल्द ही आपसे संपर्क करेंगे ताकि आपकी जरूरतों को समझकर आपको बेस्ट प्राइस दे सकें। 🚀\n\nआपका दिन शुभ हो!`;
+        }
     }
 };
 
