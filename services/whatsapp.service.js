@@ -1,5 +1,5 @@
 const axios = require('axios');
-const content = require('./messages'); // Import the separated content file
+const content = require('./messages');
 
 // Helper Function to trigger the Meta WhatsApp API
 async function sendToWhatsApp(payload) {
@@ -13,7 +13,7 @@ async function sendToWhatsApp(payload) {
 }
 
 // -------------------------------------------------------------
-// STEP 1: Greet & Select Language
+// STEP 1: Short Greet & Select Language
 // -------------------------------------------------------------
 async function sendLanguageSelection(toPhone, name) {
     const payload = {
@@ -35,7 +35,7 @@ async function sendLanguageSelection(toPhone, name) {
 }
 
 // -------------------------------------------------------------
-// STEP 2: Main Services Menu (Language Aware)
+// STEP 2: Main Services Menu (Includes 'About Us' Bullet Points)
 // -------------------------------------------------------------
 async function sendMainMenu(toPhone, lang = 'en') {
     const data = content.menu[lang];
@@ -66,7 +66,7 @@ async function sendMainMenu(toPhone, lang = 'en') {
 }
 
 // -------------------------------------------------------------
-// STEP 3: Point-by-Point Service Deliverables
+// STEP 3: Service Details (Bullet points on HOW it helps)
 // -------------------------------------------------------------
 async function sendServiceDetails(toPhone, serviceKey, lang = 'en') {
     const data = content.serviceDetails[lang];
@@ -81,8 +81,7 @@ async function sendServiceDetails(toPhone, serviceKey, lang = 'en') {
             body: { text: detailsText + data.actionPrompt },
             action: {
                 buttons: [
-                    { type: "reply", reply: { id: `quote_${serviceKey}_${lang}`, title: data.btnCall } },
-                    { type: "reply", reply: { id: `pay_${serviceKey}_${lang}`, title: data.btnPay } },
+                    { type: "reply", reply: { id: `form_${serviceKey}_${lang}`, title: data.btnProceed } },
                     { type: "reply", reply: { id: `menu_${lang}`, title: data.btnBack } }
                 ]
             }
@@ -92,26 +91,10 @@ async function sendServiceDetails(toPhone, serviceKey, lang = 'en') {
 }
 
 // -------------------------------------------------------------
-// STEP 4A: Send Razorpay Payment Link
+// STEP 4: Ask for Details (Name, Business, Budget)
 // -------------------------------------------------------------
-async function sendPaymentAndReceipt(toPhone, serviceKey, lang = 'en') {
-    const linkToSend = content.paymentLinks[serviceKey] || content.paymentLinks['srv_web'];
-    const paymentText = content.paymentMessage[lang](linkToSend);
-
-    const payload = {
-        messaging_product: "whatsapp",
-        to: toPhone,
-        type: "text",
-        text: { body: paymentText, preview_url: true }
-    };
-    await sendToWhatsApp(payload);
-}
-
-// -------------------------------------------------------------
-// STEP 4B: Free Consultation / Callback Request
-// -------------------------------------------------------------
-async function sendConsultationConfirmation(toPhone, lang = 'en') {
-    const message = content.consultationMessage[lang];
+async function sendLeadForm(toPhone, lang = 'en') {
+    const message = content.leadQuestions[lang];
 
     const payload = {
         messaging_product: "whatsapp",
@@ -126,6 +109,5 @@ module.exports = {
     sendLanguageSelection,
     sendMainMenu,
     sendServiceDetails,
-    sendPaymentAndReceipt,
-    sendConsultationConfirmation
+    sendLeadForm
 };
