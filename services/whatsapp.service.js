@@ -1,7 +1,6 @@
 const axios = require('axios');
 const content = require('./messages');
 
-// Helper Function to trigger the Meta WhatsApp API
 async function sendToWhatsApp(payload) {
     const API_URL = `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_ID}/messages`;
     await axios.post(API_URL, payload, {
@@ -12,9 +11,7 @@ async function sendToWhatsApp(payload) {
     });
 }
 
-// -------------------------------------------------------------
-// STEP 1: Short Greet & Select Language
-// -------------------------------------------------------------
+// 1. Language Selection
 async function sendLanguageSelection(toPhone, name) {
     const payload = {
         messaging_product: "whatsapp",
@@ -34,12 +31,9 @@ async function sendLanguageSelection(toPhone, name) {
     await sendToWhatsApp(payload);
 }
 
-// -------------------------------------------------------------
-// STEP 2: Main Services Menu (Includes 'About Us' Bullet Points)
-// -------------------------------------------------------------
+// 2. Main Menu
 async function sendMainMenu(toPhone, lang = 'en') {
     const data = content.menu[lang];
-
     const payload = {
         messaging_product: "whatsapp",
         to: toPhone,
@@ -53,11 +47,7 @@ async function sendMainMenu(toPhone, lang = 'en') {
                 button: data.button,
                 sections: [{
                     title: data.menuTitle,
-                    rows: data.services.map(s => ({
-                        id: s.id,
-                        title: s.title,
-                        description: s.desc
-                    }))
+                    rows: data.services.map(s => ({ id: s.id, title: s.title, description: s.desc }))
                 }]
             }
         }
@@ -65,9 +55,7 @@ async function sendMainMenu(toPhone, lang = 'en') {
     await sendToWhatsApp(payload);
 }
 
-// -------------------------------------------------------------
-// STEP 3: Service Details (Bullet points on HOW it helps)
-// -------------------------------------------------------------
+// 3. Service Details with Buttons
 async function sendServiceDetails(toPhone, serviceKey, lang = 'en') {
     const data = content.serviceDetails[lang];
     const detailsText = data[serviceKey] || data['srv_web'];
@@ -81,7 +69,8 @@ async function sendServiceDetails(toPhone, serviceKey, lang = 'en') {
             body: { text: detailsText + data.actionPrompt },
             action: {
                 buttons: [
-                    { type: "reply", reply: { id: `form_${serviceKey}_${lang}`, title: data.btnProceed } },
+                    { type: "reply", reply: { id: `form_${serviceKey}_${lang}`, title: data.btnForm } },
+                    { type: "reply", reply: { id: `pay_${serviceKey}_${lang}`, title: data.btnPay } },
                     { type: "reply", reply: { id: `menu_${lang}`, title: data.btnBack } }
                 ]
             }
@@ -90,24 +79,45 @@ async function sendServiceDetails(toPhone, serviceKey, lang = 'en') {
     await sendToWhatsApp(payload);
 }
 
-// -------------------------------------------------------------
-// STEP 4: Ask for Details (Name, Business, Budget)
-// -------------------------------------------------------------
-async function sendLeadForm(toPhone, lang = 'en') {
-    const message = content.leadQuestions[lang];
+// 4A. Dynamic Form logic
+async function sendLeadForm(toPhone, serviceKey, lang = 'en') {
+    let formText = "";
+    if (serviceKey === 'srv_web' || serviceKey === 'srv_app') {
+        formText = content.forms[lang].web_app;
+    } else if (serviceKey === 'srv_ads') {
+        formText = content.forms[lang].ads;
+    } else if (serviceKey === 'srv_auto') {
+        formText = content.forms[lang].auto;
+    }
 
     const payload = {
         messaging_product: "whatsapp",
         to: toPhone,
         type: "text",
-        text: { body: message }
+        text: { body: formText }
+    };
+    await sendToWhatsApp(payload);
+}
+
+// 4B. Payment Logic
+async function sendPayment(toPhone, serviceKey, lang = 'en') {
+    const link = content.paymentUrls[serviceKey] || content.paymentUrls['srv_web'];
+
+    // Determine Team Name dynamically
+    let team = "Expert";
+    if (serviceKey.includes('web') || serviceKey.includes('app')) team = "Web/App";
+    if (serviceKey.includes('ads')) team = "Ads";
+    if (serviceKey.includes('auto')) team = "Automation";
+
+    const payload = {
+        messaging_product: "whatsapp",
+        to: toPhone,
+        type: "text",
+        text: { body: content.paymentMessage[lang](link, team), preview_url: true }
     };
     await sendToWhatsApp(payload);
 }
 
 module.exports = {
-    sendLanguageSelection,
-    sendMainMenu,
-    sendServiceDetails,
-    sendLeadForm
+    sendLanguageSelection, sendMainMenu, sendServiceDetails, sendLeadForm, sendPayment
 };
