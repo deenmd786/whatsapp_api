@@ -34,22 +34,19 @@ const handleWebhook = async (req, res) => {
         const change = entry?.changes?.[0];
         const message = change?.value?.messages?.[0];
 
-        // Safety check for customer name
         const customerName = change?.value?.contacts?.[0]?.profile?.name || "Client";
 
         if (message) {
             const senderNumber = message.from;
 
-            // 1. IF THE USER TYPES TEXT (Like "Hi")
             if (message.type === 'text') {
                 await whatsappService.sendLanguageSelection(senderNumber, customerName);
             }
 
-            // 2. IF AN INTERACTIVE ELEMENT IS CLICKED
             if (message.type === 'interactive') {
                 const interactive = message.interactive;
 
-                // Handle List Options (Service selection)
+                // Handle List Options
                 if (interactive.type === 'list_reply') {
                     const fullId = interactive.list_reply.id;
                     const parts = fullId.split('_');
@@ -63,13 +60,12 @@ const handleWebhook = async (req, res) => {
                 if (interactive.type === 'button_reply') {
                     const buttonId = interactive.button_reply.id;
 
-                    // Language Selection Buttons
+                    console.log(`\n👉 [ACTION] User clicked button ID: ${buttonId}`);
+
                     if (buttonId.startsWith('lang_')) {
                         const selectedLang = buttonId.replace('lang_', '');
                         await whatsappService.sendMainMenu(senderNumber, selectedLang);
                     }
-
-                    // Main Menu Return Button
                     else if (buttonId.startsWith('menu_')) {
                         const lang = buttonId.replace('menu_', '');
                         await whatsappService.sendMainMenu(senderNumber, lang);
@@ -77,35 +73,49 @@ const handleWebhook = async (req, res) => {
 
                     // 🎯 "GET BEST PRICE" BUTTON CLICKED
                     else if (buttonId.startsWith('price_')) {
-                        // Extract service: price_srv_web_en -> 'srv_web'
+                        console.log(`✅ [DEBUG] "Get Best Price" button logic triggered!`);
+
                         const parts = buttonId.split('_');
                         const serviceKey = `${parts[1]}_${parts[2]}`;
                         const lang = parts[3] || 'en';
 
-                        // 1. Instantly send Final Thank You Message on WhatsApp
-                        await whatsappService.sendFinalMessage(senderNumber, serviceKey, lang);
+                        console.log(`[DEBUG] Extracted Service: ${serviceKey}`);
 
-                        // 2. Instantly send Email to Admin
+                        // 1. Send WhatsApp Message
+                        try {
+                            await whatsappService.sendFinalMessage(senderNumber, serviceKey, lang);
+                            console.log(`[DEBUG] Final WhatsApp message sent successfully.`);
+                        } catch (waError) {
+                            console.error(`❌ [ERROR] WhatsApp message failed:`, waError.message);
+                        }
+
+                        // 2. Send Email
                         const chosenService = content.teamNames[serviceKey] || 'Consulting';
                         const mailOptions = {
                             from: process.env.EMAIL_USER,
-                            to: 'deen8851@gmail.com', // Your email
+                            to: 'deen8851@gmail.com',
                             subject: `New Lead: ${customerName} wants ${chosenService}`,
                             text: `New Lead Alert!\n\nName: ${customerName}\nWhatsApp Number: ${senderNumber}\nChosen Service: ${chosenService}`
                         };
 
+                        console.log(`[DEBUG] Preparing to send email from: ${mailOptions.from} to ${mailOptions.to}...`);
+
                         try {
-                            await transporter.sendMail(mailOptions);
-                            console.log(`✅ Lead Email sent successfully for ${customerName}!`);
+                            let info = await transporter.sendMail(mailOptions);
+                            console.log(`✅ [SUCCESS] Lead Email sent successfully! Message ID: ${info.messageId}`);
                         } catch (error) {
-                            console.error('❌ Error sending email:', error);
+                            console.error('\n❌ [EMAIL ERROR] Failed to send email.');
+                            console.error('Error Message:', error.message);
+                            console.error('Full Error Details:', error);
                         }
+                    } else {
+                        console.log(`⚠️ [DEBUG] Button ID ${buttonId} did not match any known actions.`);
                     }
                 }
             }
         }
     } catch (error) {
-        console.error("Error in webhook handler:", error.response?.data || error.message);
+        console.error("❌ [CRITICAL ERROR] in webhook handler:", error.message);
     }
 };
 
