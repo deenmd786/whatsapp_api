@@ -42,12 +42,33 @@ const handleWebhook = async (req, res) => {
 
             // 1. If any initial text is sent -> Prompt Language Selection
             if (message.type === 'text') {
-                await whatsappService.sendLanguageSelection(senderNumber, customerName);
+                const userText = message.text.body;
+                console.log(`Lead Details Received from ${customerName}: ${userText}`);
+
+                // A. Send Email to You with their Typed Details
+                const mailOptions = {
+                    from: process.env.EMAIL_USER,
+                    to: 'deen8851@gmail.com', // Your email
+                    subject: `🎯 New Lead Alert: Details from ${customerName}`,
+                    text: `You have a new lead who filled out the form!\n\nClient Name: ${customerName}\nWhatsApp Number: ${senderNumber}\n\nClient Answered:\n"${userText}"\n\nPlease contact them immediately.`
+                };
+
+                try {
+                    await transporter.sendMail(mailOptions);
+                    console.log('Lead Details Email sent successfully!');
+                } catch (error) {
+                    console.error('Error sending email:', error);
+                }
+
+                // B. Send the Final Thank you message on WhatsApp
+                // Note: We use a default 'srv_web' here just to trigger the generic Thank You text
+                await whatsappService.sendFinalMessage(senderNumber, 'srv_web', 'en');
             }
 
             // 2. If an interactive element is clicked
             if (message.type === 'interactive') {
                 const interactive = message.interactive;
+                const buttonId = message.interactive.button_reply?.id || message.interactive.list_reply?.id;
 
                 // Handle List Options (Service selection from Main Menu)
                 if (interactive.type === 'list_reply') {
@@ -57,6 +78,13 @@ const handleWebhook = async (req, res) => {
                     const lang = parts[2] || 'en'; // "en" or "hi"
 
                     await whatsappService.sendServiceDetails(senderNumber, serviceKey, lang);
+
+                } else if (buttonId.startsWith('price_')) {
+                    const parts = buttonId.split('_');
+                    const lang = parts[3] || 'en';
+
+                    // Simply send the form asking for their Business Name & Budget
+                    await whatsappService.sendPriceForm(senderNumber, lang);
                 }
 
                 // Handle Button Clicks
