@@ -1,44 +1,28 @@
 require('dotenv').config();
 const express = require('express');
-const nodemailer = require('nodemailer');
+const nodemailer = require('nodemailer'); // Import nodemailer
 const cors = require('cors');
 
-// 1. IMPORT YOUR WHATSAPP SERVICE AND MESSAGES CONTENT
-const whatsappService = require('./services/whatsapp.service');
-const content = require('./services/messages');
+// Import routes
+const webhookRoutes = require('./routes/webhook.routes');
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
+// This is the endpoint UptimeRobot will hit
 app.get('/ping', (req, res) => {
     console.log('Ping received! Keeping server awake.');
     res.status(200).send('Awake');
 });
 
+// Root health check
 app.get('/', (req, res) => res.send('Digroz Webhook Server Live!'));
 
-// ⚠️ IMPORTANT: I commented this out because you are defining POST /webhook below.
-// If you leave this active, Express will ignore the webhook logic at the bottom of this file.
-// const webhookRoutes = require('./routes/webhook.routes');
-// app.use('/webhook', webhookRoutes);
-
-// META WEBHOOK VERIFICATION (GET)
-app.get('/webhook', (req, res) => {
-    const verify_token = process.env.VERIFY_TOKEN;
-    let mode = req.query["hub.mode"];
-    let token = req.query["hub.verify_token"];
-    let challenge = req.query["hub.challenge"];
-
-    if (mode && token) {
-        if (mode === "subscribe" && token === verify_token) {
-            res.status(200).send(challenge);
-        } else {
-            res.sendStatus(403);
-        }
-    }
-});
+// Use Routes
+app.use('/webhook', webhookRoutes);
 
 // -------------------------------------------------------------
 // SETUP EMAIL TRANSPORTER
@@ -46,13 +30,13 @@ app.get('/webhook', (req, res) => {
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: process.env.EMAIL_USER, // Cleaned up syntax
-        pass: process.env.EMAIL_PASS
+        user: `${process.env.EMAIL_USER}`, // 👈 Put your Digroz Gmail here
+        pass: `${process.env.EMAIL_PASS}` // 👈 Put the App Password here (no spaces)
     }
 });
 
 // -------------------------------------------------------------
-// YOUR WEBHOOK (POST)
+// YOUR WEBHOOK
 // -------------------------------------------------------------
 app.post('/webhook', async (req, res) => {
     const body = req.body;
@@ -64,54 +48,36 @@ app.post('/webhook', async (req, res) => {
         if (changes.messages && changes.messages.length > 0) {
             const message = changes.messages[0];
             const phone = message.from;
+            const contactName = changes.contacts[0].profile.name;
 
-            // Safety check: Ensure contact profile exists so the server doesn't crash
-            const contactName = changes.contacts ? changes.contacts[0].profile.name : "Client";
-
-            // IF THE USER TYPED A MESSAGE
+            // IF THE USER TYPED A MESSAGE (Filled out the form)
             if (message.type === 'text') {
                 const userText = message.text.body;
-                console.log(`New Message: ${contactName} (${phone}) - ${userText}`);
-                // You can keep standard text handling here if needed
+
+                console.log(`New Lead: ${contactName} (${phone}) - ${userText}`);
+
+                // Send Email to Yourself
+                const mailOptions = {
+                    from: `${process.env.EMAIL_USER}`,     // Sent from your bot email
+                    to: 'deen8851@gmail.com',       // Sent TO your personal/business email (can be the same)
+                    subject: `🚀 New Lead Alert: ${contactName}`,
+                    text: `You have a new form submission from WhatsApp!\n\nClient Name: ${contactName}\nWhatsApp Number: ${phone}\n\nClient Details:\n${userText}`
+                };
+
+                try {
+                    await transporter.sendMail(mailOptions);
+                    console.log('Email sent successfully!');
+                } catch (error) {
+                    console.error('Error sending email:', error);
+                }
             }
 
-            // IF THE USER CLICKED A BUTTON OR LIST
+            // IF THE USER CLICKED A BUTTON
             if (message.type === 'interactive') {
                 const buttonId = message.interactive.button_reply?.id || message.interactive.list_reply?.id;
                 console.log(`User clicked button: ${buttonId}`);
 
-                // 🎯 WHEN THEY CLICK "GET BEST PRICE"
-                if (buttonId && buttonId.startsWith('price_')) {
-
-                    // Extract service name and language from the button ID (e.g., price_srv_web_en)
-                    const parts = buttonId.split('_');
-                    const lang = parts[parts.length - 1]; // 'en' or 'hi'
-                    const serviceKey = parts.slice(1, -1).join('_'); // 'srv_web'
-
-                    // 1. Send the Thank You Message on WhatsApp
-                    await whatsappService.sendFinalMessage(phone, serviceKey, lang);
-
-                    // 2. Send the Email Alert to You
-                    const teamName = content.teamNames[serviceKey] || 'Consulting';
-                    const mailOptions = {
-                        from: process.env.EMAIL_USER,
-                        to: 'deen8851@gmail.com',
-                        subject: `🎯 New Lead Alert: ${contactName} wants ${teamName}`,
-                        text: `You have a new hot lead from WhatsApp!\n\nClient Name: ${contactName}\nWhatsApp Number: ${phone}\nInterested Service: ${teamName}\n\nAction: The user clicked 'Get Best Price'. Please contact them immediately.`
-                    };
-
-                    try {
-                        await transporter.sendMail(mailOptions);
-                        console.log('Lead Email sent successfully!');
-                    } catch (error) {
-                        console.error('Error sending email:', error);
-                    }
-                }
-
-                // You will add your other button routing here eventually. Example:
-                // else if (buttonId === 'lang_en') {
-                //     await whatsappService.sendMainMenu(phone, 'en');
-                // }
+                // Trigger your bot.js functions here based on buttonId
             }
         }
         res.sendStatus(200);
