@@ -91,21 +91,9 @@ async function sendFinalMessage(toPhone, serviceKey, lang = 'en') {
     await sendToWhatsApp(payload);
 }
 
-// Add this new function
-async function sendPriceForm(toPhone, lang = 'en') {
-    const payload = {
-        messaging_product: "whatsapp",
-        to: toPhone,
-        type: "text",
-        text: { body: content.priceForm[lang] }
-    };
-    await sendToWhatsApp(payload);
-}
-
 module.exports = {
     sendLanguageSelection,
     sendMainMenu,
     sendServiceDetails,
     sendFinalMessage,
-    sendPriceForm
 };

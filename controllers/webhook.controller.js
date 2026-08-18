@@ -1,5 +1,5 @@
 const whatsappService = require('../services/whatsapp.service');
-const content = require('../services/messages');
+const content = require('../messages'); // Make sure this path is correct
 const nodemailer = require('nodemailer');
 
 // -------------------------------------------------------------
@@ -34,99 +34,71 @@ const handleWebhook = async (req, res) => {
         const change = entry?.changes?.[0];
         const message = change?.value?.messages?.[0];
 
-        // Safety check to prevent crashes if name is hidden
+        // Safety check for customer name
         const customerName = change?.value?.contacts?.[0]?.profile?.name || "Client";
 
         if (message) {
             const senderNumber = message.from;
 
-            // 1. If any initial text is sent -> Prompt Language Selection
+            // 1. IF THE USER TYPES TEXT (Like "Hi")
             if (message.type === 'text') {
-                const userText = message.text.body;
-                console.log(`Lead Details Received from ${customerName}: ${userText}`);
-
-                // A. Send Email to You with their Typed Details
-                const mailOptions = {
-                    from: process.env.EMAIL_USER,
-                    to: 'deen8851@gmail.com', // Your email
-                    subject: `🎯 New Lead Alert: Details from ${customerName}`,
-                    text: `You have a new lead who filled out the form!\n\nClient Name: ${customerName}\nWhatsApp Number: ${senderNumber}\n\nClient Answered:\n"${userText}"\n\nPlease contact them immediately.`
-                };
-
-                try {
-                    await transporter.sendMail(mailOptions);
-                    console.log('Lead Details Email sent successfully!');
-                } catch (error) {
-                    console.error('Error sending email:', error);
-                }
-
-                // B. Send the Final Thank you message on WhatsApp
-                // Note: We use a default 'srv_web' here just to trigger the generic Thank You text
-                await whatsappService.sendFinalMessage(senderNumber, 'srv_web', 'en');
+                await whatsappService.sendLanguageSelection(senderNumber, customerName);
             }
 
-            // 2. If an interactive element is clicked
+            // 2. IF AN INTERACTIVE ELEMENT IS CLICKED
             if (message.type === 'interactive') {
                 const interactive = message.interactive;
-                const buttonId = message.interactive.button_reply?.id || message.interactive.list_reply?.id;
 
-                // Handle List Options (Service selection from Main Menu)
+                // Handle List Options (Service selection)
                 if (interactive.type === 'list_reply') {
-                    const fullId = interactive.list_reply.id; // e.g. "srv_web_en"
+                    const fullId = interactive.list_reply.id;
                     const parts = fullId.split('_');
-                    const serviceKey = `${parts[0]}_${parts[1]}`; // "srv_web"
-                    const lang = parts[2] || 'en'; // "en" or "hi"
+                    const serviceKey = `${parts[0]}_${parts[1]}`;
+                    const lang = parts[2] || 'en';
 
                     await whatsappService.sendServiceDetails(senderNumber, serviceKey, lang);
-
-                } else if (buttonId.startsWith('price_')) {
-                    const parts = buttonId.split('_');
-                    const lang = parts[3] || 'en';
-
-                    // Simply send the form asking for their Business Name & Budget
-                    await whatsappService.sendPriceForm(senderNumber, lang);
                 }
 
                 // Handle Button Clicks
                 if (interactive.type === 'button_reply') {
                     const buttonId = interactive.button_reply.id;
 
-                    // Language Selection: "lang_en"
+                    // Language Selection Buttons
                     if (buttonId.startsWith('lang_')) {
                         const selectedLang = buttonId.replace('lang_', '');
                         await whatsappService.sendMainMenu(senderNumber, selectedLang);
                     }
 
-                    // Main Menu Return Button: "menu_en"
+                    // Main Menu Return Button
                     else if (buttonId.startsWith('menu_')) {
                         const lang = buttonId.replace('menu_', '');
                         await whatsappService.sendMainMenu(senderNumber, lang);
                     }
 
-                    // 🎯 GET BEST PRICE BUTTON CLICKED: "price_srv_web_en"
+                    // 🎯 "GET BEST PRICE" BUTTON CLICKED
                     else if (buttonId.startsWith('price_')) {
-                        // Extract details: price_srv_web_en -> ['price', 'srv', 'web', 'en']
+                        // Extract service: price_srv_web_en -> 'srv_web'
                         const parts = buttonId.split('_');
-                        const serviceKey = `${parts[1]}_${parts[2]}`; // "srv_web"
+                        const serviceKey = `${parts[1]}_${parts[2]}`;
                         const lang = parts[3] || 'en';
 
-                        // 1. Send the Final Thank You Message on WhatsApp
+                        // 1. Instantly send Final Thank You Message on WhatsApp
                         await whatsappService.sendFinalMessage(senderNumber, serviceKey, lang);
 
-                        // 2. Send the Email Alert to You
-                        const teamName = content.teamNames[serviceKey] || 'Consulting';
+                        // 2. Instantly send Email to Admin
+                        const chosenService = content.teamNames[serviceKey] || 'Consulting';
                         const mailOptions = {
                             from: process.env.EMAIL_USER,
-                            to: 'deen8851@gmail.com',
-                            subject: `🎯 New Lead Alert: ${customerName} wants ${teamName}`,
-                            text: `You have a new hot lead from WhatsApp!\n\nClient Name: ${customerName}\nWhatsApp Number: ${senderNumber}\nInterested Service: ${teamName}\n\nAction: The user clicked 'Get Best Price'. Please contact them immediately.`
+                            to: 'deen8851@gmail.com', // Your email
+                            subject: `New Lead: ${customerName} wants ${chosenService}`,
+                            text: `New Lead Alert!\n\nName: ${customerName}\nWhatsApp Number: ${senderNumber}\nChosen Service: ${chosenService}`
                         };
 
                         try {
                             await transporter.sendMail(mailOptions);
-                            console.log('Lead Email sent successfully to admin!');
+                            console.log(`✅ Lead Email sent successfully for ${customerName}!`);
                         } catch (error) {
-                            console.error('Error sending email:', error);
+                            console.error('❌ Error sending email:', error);
                         }
                     }
                 }

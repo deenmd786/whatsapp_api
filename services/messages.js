@@ -93,13 +93,6 @@ const content = {
         }
     },
 
-
-    // Add this right above finalMessage in messages.js
-    priceForm: {
-        en: "Great! Let's get you the best price. 🏷️\n\nPlease reply with:\n1️⃣ *Business Type:*\n2️⃣ *Estimated Budget:*\n\n_Type your answers and hit send!_",
-        hi: "शानदार! चलिए आपको बेस्ट प्राइस बताते हैं। 🏷️\n\nकृपया रिप्लाई में बताएं:\n1️⃣ *बिज़नेस का प्रकार:*\n2️⃣ *अनुमानित बजट:*\n\n_बस अपने जवाब टाइप करें और सेंड करें!_"
-    },
-
     // -------------------------------------------------------------
     // STEP 4: Final Thank You Message (Replaces the Form)
     // -------------------------------------------------------------
