@@ -1,5 +1,5 @@
 const whatsappService = require('../services/whatsapp.service');
-const content = require('../messages'); // Make sure this path is correct
+const content = require('../services/messages'); // Make sure this path is correct
 const nodemailer = require('nodemailer');
 
 // -------------------------------------------------------------
