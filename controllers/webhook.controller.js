@@ -1,40 +1,26 @@
 const whatsappService = require('../services/whatsapp.service');
 const content = require('../services/messages'); // Adjust path to messages.js if needed
-const nodemailer = require('nodemailer');
+const axios = require('axios'); // Use axios for sending data to Google Sheets
 
-// -------------------------------------------------------------
-// SETUP EMAIL TRANSPORTER (With Timeout Protection)
-// -------------------------------------------------------------
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    },
-    pool: true,
-    connectionTimeout: 10000, // 10 seconds timeout
-    greetingTimeout: 5000,
-    socketTimeout: 10000
-});
+// 👉 YOUR GOOGLE SCRIPT WEB APP URL:
+const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxVxB6YYEpWtk7axLhqFnPvWBVzNaaUK74q2gxC3mt9STHDjt1XMugJ40qgaPFSyJRbDg/exec';
 
-// Helper function to send lead emails safely
-function sendLeadEmail(customerName, senderNumber, chosenService, actionType) {
-    const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: 'deen8851@gmail.com',
-        subject: `🎯 New Lead Alert: ${customerName} interested in ${chosenService}`,
-        text: `New Lead Alert!\n\nName: ${customerName}\nWhatsApp Number: ${senderNumber}\nInterested Service: ${chosenService}\nAction: ${actionType}\n\nYou can reach out to them directly on WhatsApp!`
-    };
+// Helper function to send data to Google Sheet safely
+async function sendToGoogleSheet(customerName, senderNumber, chosenService, actionType) {
+    try {
+        console.log(`[SHEETS] Sending lead data for: ${customerName}...`);
 
-    console.log(`[EMAIL] Attempting to send email for: ${chosenService}...`);
+        await axios.post(GOOGLE_SHEET_URL, {
+            name: customerName,
+            phone: senderNumber,
+            service: chosenService,
+            action: actionType
+        });
 
-    transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-            console.error('❌ [EMAIL ERROR]:', error.message);
-        } else {
-            console.log(`✅ [EMAIL SUCCESS] Sent to deen8851@gmail.com (ID: ${info.messageId})`);
-        }
-    });
+        console.log(`✅ [SHEETS SUCCESS] Lead added to Google Sheet!`);
+    } catch (error) {
+        console.error('❌ [SHEETS ERROR]:', error.message);
+    }
 }
 
 // 1. Webhook Verification (GET)
@@ -82,9 +68,9 @@ const handleWebhook = async (req, res) => {
                     // A. Send Service Details to the user on WhatsApp
                     await whatsappService.sendServiceDetails(senderNumber, serviceKey, lang);
 
-                    // B. Send Email Alert to you immediately
+                    // B. Send Lead Data to Google Sheet
                     const chosenService = content.teamNames[serviceKey] || 'Consulting';
-                    sendLeadEmail(customerName, senderNumber, chosenService, 'Selected from Service Menu');
+                    await sendToGoogleSheet(customerName, senderNumber, chosenService, 'Viewed Service Details');
                 }
 
                 // 🎯 2. TRIGGERED WHEN USER CLICKS BUTTONS
@@ -110,9 +96,9 @@ const handleWebhook = async (req, res) => {
                         // Send Final Thank You message on WhatsApp
                         await whatsappService.sendFinalMessage(senderNumber, serviceKey, lang);
 
-                        // Send Email Alert
+                        // Send HOT LEAD to Google Sheet
                         const chosenService = content.teamNames[serviceKey] || 'Consulting';
-                        sendLeadEmail(customerName, senderNumber, chosenService, 'Clicked Get Best Price');
+                        await sendToGoogleSheet(customerName, senderNumber, chosenService, 'Clicked Get Best Price (HOT LEAD)');
                     }
                 }
             }
