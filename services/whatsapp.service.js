@@ -91,9 +91,25 @@ async function sendFinalMessage(toPhone, serviceKey, lang = 'en') {
     await sendToWhatsApp(payload);
 }
 
+async function sendAdminAlert(customerName, customerPhone, chosenService) {
+    const ADMIN_PHONE = "918851253661"; // Your personal number
+
+    const messageText = `🚨 *NEW HOT LEAD!* 🚨\n\n*Name:* ${customerName}\n*Phone:* +${customerPhone}\n*Service:* ${chosenService}\n\n_Tap their number above to message them directly!_`;
+
+    const payload = {
+        messaging_product: "whatsapp",
+        to: ADMIN_PHONE,
+        type: "text",
+        text: { body: messageText }
+    };
+
+    await sendToWhatsApp(payload);
+}
+
 module.exports = {
     sendLanguageSelection,
     sendMainMenu,
     sendServiceDetails,
     sendFinalMessage,
+    sendAdminAlert
 };

@@ -98,6 +98,7 @@ const handleWebhook = async (req, res) => {
 
                         // Send HOT LEAD to Google Sheet
                         const chosenService = content.teamNames[serviceKey] || 'Consulting';
+                        await whatsappService.sendAdminAlert(customerName, senderNumber, chosenService);
                         await sendToGoogleSheet(customerName, senderNumber, chosenService, 'Clicked Get Best Price (HOT LEAD)');
                     }
                 }
